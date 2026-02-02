@@ -4,7 +4,7 @@
 # Example Workflows
 Subtitle generation workflow is included in [workflows](./workflows) directory
 
-![workflow](./faster_whisper_suttitle.png)
+![image](./faster_whisper_suttitle.png)
 
 
 # Installation
