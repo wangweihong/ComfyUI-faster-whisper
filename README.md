@@ -38,3 +38,9 @@ This project has made the following modifications to the [original repository](h
 2. Enhanced `FastWhisper To Subtitle`Node: 
     1. Added a pure text output option that generates plain text transcription without timestamps. It can link to `ShowText` Node to see output text directly   
 3. Improved Language Selection: The "Language" parameter now supports dropdown menu operation for easier selection.
+
+# Notice
+To improve the accuracy of speech recognition, the following modifications are recommended:
+1. Resample the input audio to 16000Hz using the `Audio Resampled` node from `comfy_mtb`
+2. Set `vad_filter` to true
+3. Increase the value of `no_speech_threshold`
