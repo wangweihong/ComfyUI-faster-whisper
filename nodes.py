@@ -8,6 +8,7 @@ from comfy.utils import ProgressBar
 
 from .utils.subtitle_utils import AVAILABLE_SUBTITLE_FORMAT, format_transcriptions_to_subtitle, get_incremented_filename
 from .utils.path_utils import collect_model_paths
+from .utils.tokenizer_constant import AVAILABLE_LANGS
 
 faster_whisper_script_dir_path = os.path.dirname(os.path.abspath(__file__))
 faster_whisper_model_dir = os.path.join(folder_paths.models_dir, "faster-whisper")
@@ -33,6 +34,7 @@ class LoadFasterWhisperModel:
     RETURN_NAMES = ("faster_whisper_model",)
     FUNCTION = "load_model"
     CATEGORY = "FASTERWHISPER"
+    
 
     def load_model(self,
                    model: str,
@@ -40,7 +42,7 @@ class LoadFasterWhisperModel:
                    ) -> Tuple[faster_whisper.WhisperModel]:
         os.makedirs(faster_whisper_model_dir, exist_ok=True)
         model = collect_model_paths()[model]
-
+        # WhispeerModel,如果传的是v3-large这些模型size,则会自动下模型
         faster_whisper_model = faster_whisper.WhisperModel(
             device=device,
             model_size_or_path=model,
@@ -54,13 +56,17 @@ class LoadFasterWhisperModel:
 class FasterWhisperTranscription:
     @classmethod
     def INPUT_TYPES(s):
+        # 将语言名称列表提取出来，并将 "auto" 放在首位
+        lang_keys = ["auto"] + [k for k in AVAILABLE_LANGS.keys() if k != "auto"]
         return {
             "required": {
-                "audio": ("FILEPATH", ),
+              # 1. 修改这里：将 FILEPATH 改为 AUDIO
+                "audio": ("AUDIO", ),
                 "model": ("FASTERWHISPERMODEL", ),
             },
             "optional": {
-                "language": ("STRING", {"default": "auto"}),
+                # 修改点：将 STRING 改为列表，ComfyUI 会自动将其渲染为可搜索的下拉框
+                "language": (lang_keys, {"default": "auto"}),
                 "task": (["transcribe", "translate"], ),
                 "beam_size": ("INT", {"default": 5}),
                 "log_prob_threshold": ("FLOAT", {"default": -1.0}),
@@ -105,10 +111,34 @@ class FasterWhisperTranscription:
                    model: faster_whisper.WhisperModel,
                    **params,
                    ) -> Tuple[List]:
+        # 2. 处理 AUDIO 字典数据
+        # ComfyUI 的 AUDIO 格式通常为: {"waveform": Tensor, "sample_rate": int}
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        
+        # Faster-Whisper 需要的是 numpy 数组
+        # 如果 waveform 是 (Batch, Channels, Samples)，通常需要转为单声道并展平
+        if len(waveform.shape) > 2:
+            waveform = waveform.mean(dim=1) # 混合声道
+        
+        # 转换为 numpy 并在 16000Hz 采样率下工作（Faster-Whisper 默认标准）
+        # 注意：如果输入采样率不是 16000，某些情况下 whisper 内部会自动处理，
+        # 但为了稳定性，建议转换为 float32 numpy
+        audio_np = waveform.cpu().numpy().flatten()
+        # 映射语言：将界面显示的 "Chinese" 转换为 "zh"
+        selected_lang = params.get("language", "auto")
+        params["language"] = AVAILABLE_LANGS.get(selected_lang, None)
+        
+        # 特殊处理：如果是 "auto"，传给 model.transcribe 的应该是 None
+        if params["language"] == "auto":
+            params["language"] = None
         params = self.collect_params(params)
 
+        # 3. 执行转录
+        # 这里的 audio 传入 numpy 数组
+        # transcribe支持路徑，audio waveform
         segments, info = model.transcribe(
-            audio=audio,
+            audio=audio_np,
             **params,
         )
 
@@ -123,7 +153,6 @@ class FasterWhisperTranscription:
                 "text": segment.text
             })
         return (transcriptions, )
-
     @staticmethod
     def preprocess_audio(audio):
         audio, sr = audio["waveform"], audio["sample_rate"]
@@ -167,10 +196,20 @@ class FasterWhisperToSubtitle:
             },
         }
 
-    RETURN_TYPES = ("SUBTITLE",)
-    RETURN_NAMES = ("subtitle text",)
-    FUNCTION = "format_to_subtitle"
+    RETURN_TYPES = ("SUBTITLE","STRING")
+    RETURN_NAMES = ("subtitle text", "pure text")
+    FUNCTION = "transcribe"
     CATEGORY = "FASTERWHISPER"
+
+    def transcribe(self,
+                           transcriptions: List[Dict],
+                           subtitle_format: str,
+                           ):
+        pure_text = " ".join([t['text'].strip() for t in transcriptions])
+        formatted_content = format_transcriptions_to_subtitle(transcriptions, subtitle_format)
+        subtitle_package = [formatted_content, subtitle_format]
+        return (subtitle_package, pure_text)
+
 
     def format_to_subtitle(self,
                            transcriptions: List[Dict],
@@ -179,6 +218,7 @@ class FasterWhisperToSubtitle:
         subtitle = format_transcriptions_to_subtitle(transcriptions, subtitle_format)
         subtitle = [subtitle, subtitle_format]
         return (subtitle,)
+
 
 
 class SaveSubtitle:
@@ -227,7 +267,6 @@ class InputFilePath:
     RETURN_NAMES = ("filepath",)
     FUNCTION = "process_filepath"
     CATEGORY = "FASTERWHISPER"
-
     def process_filepath(self, filepath):
         if not os.path.exists(filepath):
             raise ValueError(f"File not found: {filepath}")

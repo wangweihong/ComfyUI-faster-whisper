@@ -17,11 +17,11 @@ def collect_model_paths(
     existing_models = os.listdir(model_dir)
     excludes = [".locks"]
     existing_models = list(set(existing_models) - set(excludes))
-
     for model_name in existing_models:
         if faster_whisper_prefix in model_name:
             model_name = model_name[len(faster_whisper_prefix):]
 
         if model_name not in faster_whisper.available_models():
             model_paths[model_name] = os.path.join(model_dir, model_name)
+    # print(f'model paths:{model_paths}')
     return model_paths

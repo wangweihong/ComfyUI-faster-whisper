@@ -1,4 +1,5 @@
 AVAILABLE_LANGS = {
+    "auto": "auto", # 加上 auto 方便处理
     "Afrikaans": "af",
     "Amharic": "am",
     "Arabic": "ar",
