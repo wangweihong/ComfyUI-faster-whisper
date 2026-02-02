@@ -37,7 +37,7 @@ If you want to place it manually, download the model from Systran's [faster-whis
 # Changes to the Original Project
 
 This project has made the following modifications to the [original repository](https://github.com/jhj0517/ComfyUI-faster-whisper):
-    1. Optimized Input Nodes: Added support for directly loading audio files rather than write a filepath.
-    2. Enhanced FastWhisper To Subtitle Node: 
-       1. Added a pure text output option that generates plain text transcription without timestamps. It can link to `ShowText` Node to see output text directly   
-    3. Improved Language Selection: The "Language" parameter now supports dropdown menu operation for easier selection.
+1. Optimized Input Nodes: Added support for directly loading audio files rather than write a filepath.
+2. Enhanced FastWhisper To Subtitle Node: 
+    1. Added a pure text output option that generates plain text transcription without timestamps. It can link to `ShowText` Node to see output text directly   
+3. Improved Language Selection: The "Language" parameter now supports dropdown menu operation for easier selection.
