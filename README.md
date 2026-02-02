@@ -1,7 +1,4 @@
 # ComfyUI-faster-whisper
-
-[]
-
 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) reference implementation for [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Workflow that generates subtitles is included. 
 
 # Example Workflows
