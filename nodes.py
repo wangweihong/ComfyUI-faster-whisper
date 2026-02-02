@@ -2,6 +2,7 @@ import os
 import faster_whisper
 from typing import Union, BinaryIO, Dict, List, Tuple
 import numpy as np
+import math
 
 import folder_paths
 from comfy.utils import ProgressBar
@@ -141,12 +142,29 @@ class FasterWhisperTranscription:
             audio=audio_np,
             **params,
         )
-
+    
+        print(f"### [Faster Whisper] 检测到语言: {info.language} (置信度: {info.language_probability:.2f})")
+        print(f"### [Faster Whisper] 开始转录...")
         comfy_pbar = ProgressBar(info.duration)
 
         transcriptions = []
         for segment in segments:
             comfy_pbar.update_absolute(segment.end)
+
+            # 计算置信度百分比
+            # avg_logprob 越接近 0，置信度越高（例如 -0.05 是极高，-1.5 是较低）
+            confidence = math.exp(segment.avg_logprob) * 100
+            
+            text = segment.text.strip()
+            
+            # --- 增加调试打印信息 ---
+            # 使用格式化字符串，让输出整齐排列
+            print(f"[{segment.start:6.2f}s -> {segment.end:6.2f}s] | 概率: {confidence:6.2f}% | 内容: {text}")
+            
+            # 如果置信度过低，打印警告
+            if confidence < 40:
+                print(f"    ▲ 警告: 该段置信度较低，可能存在幻觉或噪音干扰。")
+
             transcriptions.append({
                 "start": segment.start,
                 "end": segment.end,
